@@ -22,6 +22,9 @@ target_link_libraries(handball-scoreboard PRIVATE
   OBS::obs-frontend-api
   Qt6::Core Qt6::Gui Qt6::Widgets)
 
+set(HB_BUILD_ID "dev" CACHE STRING "Kennung des Builds (z.B. Git-Hash), erscheint im Dock und im OBS-Log")
+target_compile_definitions(handball-scoreboard PRIVATE HB_BUILD_ID="${HB_BUILD_ID}")
+
 set_target_properties(handball-scoreboard PROPERTIES PREFIX "")
 
 if(MSVC)

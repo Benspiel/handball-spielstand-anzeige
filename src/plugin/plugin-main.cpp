@@ -58,11 +58,28 @@ MODULE_EXPORT const char *obs_module_name(void)
 	return "Handball Spielstand";
 }
 
+#ifndef HB_BUILD_ID
+#define HB_BUILD_ID "dev"
+#endif
+
 bool obs_module_load(void)
 {
+	const char *path = obs_get_module_binary_path(obs_current_module());
+
+	// Liegt die DLL in zwei Ordnern (z.B. ProgramData und Programme), lädt OBS beide. Dann käme das Dock
+	// aus der einen und die Grafik-Quelle aus der anderen Kopie, jede mit eigenem Speicher: Die Grafik
+	// bliebe auf 0:0 stehen. Deshalb lädt sich jede weitere Kopie nicht mehr.
+	if (obs_get_source_output_flags("handball_scorebug") != 0) {
+		blog(LOG_ERROR,
+		     "[handball-scoreboard] Das Plugin ist doppelt installiert. Diese Kopie wird NICHT geladen: %s "
+		     "Bitte eine der beiden handball-scoreboard.dll loeschen.",
+		     path ? path : "?");
+		return false;
+	}
+
 	hbp::registerScorebugSource();
 	obs_frontend_add_event_callback(onFrontendEvent, nullptr);
-	blog(LOG_INFO, "[handball-scoreboard] geladen");
+	blog(LOG_INFO, "[handball-scoreboard] geladen (Build %s) von %s", HB_BUILD_ID, path ? path : "?");
 	return true;
 }
 

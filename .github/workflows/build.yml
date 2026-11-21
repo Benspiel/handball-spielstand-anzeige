@@ -90,7 +90,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $root = (Get-Location).Path
           $prefix = "$root/deps/obs-install;$root/deps/prebuilt;$root/deps/qt6"
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DHB_BUILD_TESTS=OFF "-DCMAKE_PREFIX_PATH:PATH=$prefix"
+          $buildId = $env:GITHUB_SHA.Substring(0, 7)
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DHB_BUILD_TESTS=OFF "-DHB_BUILD_ID=$buildId" "-DCMAKE_PREFIX_PATH:PATH=$prefix"
           if ($LASTEXITCODE -ne 0) { throw "Plugin configure fehlgeschlagen" }
           cmake --build build --config Release
           if ($LASTEXITCODE -ne 0) { throw "Plugin build fehlgeschlagen" }
@@ -140,7 +141,7 @@ jobs:
 
           Installation: ZIP entpacken und den Ordner ``obs-studio`` aus ``ProgramData`` nach ``C:\ProgramData\`` kopieren (OBS vorher schließen). Danach OBS starten, das Dock erscheint von selbst. Details in LIESMICH.md.
 
-          Neu in v2: Die Spielstand-Grafik blieb teilweise auf 0:0 und 00:00 stehen, obwohl das Dock den richtigen Stand hatte. Sie prüft jetzt bei jedem Bild selbst auf neue Werte.
+          Neu in v2: Die Spielstand-Grafik blieb auf 0:0 und 00:00 stehen, obwohl das Dock den richtigen Stand hatte. Ursache war eine doppelt installierte DLL (z.B. in ProgramData und in Programme): OBS lud beide, das Dock kam aus der einen, die Grafik aus der anderen Kopie. Jetzt lädt sich eine zweite Kopie nicht mehr und schreibt eine Meldung ins OBS-Log. Außerdem zeigt das Dock unten die Build-Nummer an.
 
           Hinweis: Dieser Stand ist unter Linux in OBS 30 getestet. Auf Windows läuft die Erkennung, der Fix für die Grafik ist dort noch nicht bestätigt.
           "@

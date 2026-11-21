@@ -28,6 +28,11 @@
 
 #include <algorithm>
 
+#ifndef HB_BUILD_ID
+#define HB_BUILD_ID "dev"
+#endif
+#define HB_BUILD_ID_STR HB_BUILD_ID
+
 namespace hbp {
 
 namespace {
@@ -242,6 +247,11 @@ void HandballDock::buildUi()
 	tabs->addTab(boardTab, u8("Tafel einrichten"));
 
 	root->addWidget(tabs);
+
+	auto *versionLabel = new QLabel(QString("Version: Build %1").arg(QString::fromLatin1(HB_BUILD_ID_STR)), content);
+	versionLabel->setStyleSheet("color: gray;");
+	versionLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+	root->addWidget(versionLabel);
 
 	// --- Verbindungen ---------------------------------------------------------------------------
 	connect(refreshButton_, &QPushButton::clicked, this, &HandballDock::refreshCameras);

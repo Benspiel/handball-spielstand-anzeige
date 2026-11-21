@@ -1,0 +1,115 @@
+name: Windows-Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      obs_version:
+        description: "OBS-Studio-Version, gegen die gebaut wird (Git-Tag, z.B. 31.0.3)"
+        required: false
+        default: "31.0.3"
+
+env:
+  OBS_VERSION: ${{ github.event.inputs.obs_version || '31.0.3' }}
+
+jobs:
+  core-tests:
+    name: Erkennung testen (Linux)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bauen und testen
+        run: |
+          cmake -S . -B build-tests -DHB_BUILD_PLUGIN=OFF -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-tests
+          ctest --test-dir build-tests --output-on-failure
+
+  windows:
+    name: Plugin für Windows bauen
+    runs-on: windows-2022
+    needs: core-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      # OBS-Quellcode (nur libobs + obs-frontend-api werden gebaut) samt den Vorab-Bibliotheken
+      # und dem Qt6, das genau diese OBS-Version mitbringt. Die Versionen liest der Build aus
+      # der buildspec.json der jeweiligen OBS-Version, damit Qt zu OBS passt.
+      - name: OBS-Quellen und Abhängigkeiten laden
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          New-Item -ItemType Directory -Force deps | Out-Null
+          Invoke-WebRequest "https://github.com/obsproject/obs-studio/archive/refs/tags/$env:OBS_VERSION.zip" -OutFile deps/obs-src.zip
+          Expand-Archive deps/obs-src.zip -DestinationPath deps
+          Move-Item "deps/obs-studio-$env:OBS_VERSION" deps/obs-studio
+
+          $spec = Get-Content deps/obs-studio/buildspec.json -Raw | ConvertFrom-Json
+          $pre = $spec.dependencies.prebuilt
+          $qt = $spec.dependencies.qt6
+          Write-Host "obs-deps: $($pre.version)   qt6: $($qt.version)"
+
+          $preUrl = "$($pre.baseUrl)/$($pre.version)/windows-deps-$($pre.version)-x64.zip"
+          $qtUrl = "$($qt.baseUrl)/$($qt.version)/windows-deps-qt6-$($qt.version)-x64.zip"
+          Invoke-WebRequest $preUrl -OutFile deps/prebuilt.zip
+          Invoke-WebRequest $qtUrl -OutFile deps/qt6.zip
+          Expand-Archive deps/prebuilt.zip -DestinationPath deps/prebuilt
+          Expand-Archive deps/qt6.zip -DestinationPath deps/qt6
+          Get-ChildItem deps/prebuilt | Select-Object -First 20 | ForEach-Object { Write-Host "prebuilt: $($_.Name)" }
+          Get-ChildItem deps/qt6 | Select-Object -First 20 | ForEach-Object { Write-Host "qt6: $($_.Name)" }
+
+      - name: libobs und obs-frontend-api bauen
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = (Get-Location).Path
+          $prefix = "$root/deps/prebuilt;$root/deps/qt6"
+          cmake -S deps/obs-studio -B deps/obs-build -G "Visual Studio 17 2022" -A x64 `
+            -DOBS_CMAKE_VERSION:STRING=3.0.0 `
+            -DENABLE_PLUGINS:BOOL=OFF `
+            -DENABLE_UI:BOOL=OFF `
+            -DENABLE_FRONTEND:BOOL=OFF `
+            -DOBS_VERSION_OVERRIDE:STRING=$env:OBS_VERSION `
+            "-DCMAKE_PREFIX_PATH:PATH=$prefix"
+          if ($LASTEXITCODE -ne 0) { throw "OBS configure fehlgeschlagen" }
+          cmake --build deps/obs-build --target obs-frontend-api --config Release
+          if ($LASTEXITCODE -ne 0) { throw "OBS build fehlgeschlagen" }
+          cmake --install deps/obs-build --component Development --config Release --prefix "$root/deps/obs-install"
+          if ($LASTEXITCODE -ne 0) { throw "OBS install fehlgeschlagen" }
+
+      - name: Plugin konfigurieren und bauen
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = (Get-Location).Path
+          $prefix = "$root/deps/obs-install;$root/deps/prebuilt;$root/deps/qt6"
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DHB_BUILD_TESTS=OFF "-DCMAKE_PREFIX_PATH:PATH=$prefix"
+          if ($LASTEXITCODE -ne 0) { throw "Plugin configure fehlgeschlagen" }
+          cmake --build build --config Release
+          if ($LASTEXITCODE -ne 0) { throw "Plugin build fehlgeschlagen" }
+
+      - name: Paket schnüren
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dll = Get-ChildItem build -Recurse -Filter handball-scoreboard.dll | Select-Object -First 1
+          if (-not $dll) { throw "handball-scoreboard.dll nicht gefunden" }
+
+          # Variante A: in den OBS-Ordner entpacken (C:\Program Files\obs-studio)
+          New-Item -ItemType Directory -Force "pkg/OBS-Installationsordner/obs-plugins/64bit" | Out-Null
+          Copy-Item $dll.FullName "pkg/OBS-Installationsordner/obs-plugins/64bit/"
+
+          # Variante B: ohne Administratorrechte nach C:\ProgramData entpacken
+          New-Item -ItemType Directory -Force "pkg/ProgramData/obs-studio/plugins/handball-scoreboard/bin/64bit" | Out-Null
+          Copy-Item $dll.FullName "pkg/ProgramData/obs-studio/plugins/handball-scoreboard/bin/64bit/"
+
+          Copy-Item README.md pkg/LIESMICH.md
+          New-Item -ItemType Directory -Force pkg/beispiel | Out-Null
+          Copy-Item docs/beispiel-tafel.png pkg/beispiel/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: handball-scoreboard-windows-x64
+          path: pkg
+          if-no-files-found: error

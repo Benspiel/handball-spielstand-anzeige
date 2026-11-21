@@ -132,7 +132,7 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || github.event.inputs.release_tag || 'v0.1.0' }}
+          TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || github.event.inputs.release_tag || 'v2' }}
         run: |
           $ErrorActionPreference = 'Stop'
           $notes = @"
@@ -140,7 +140,9 @@ jobs:
 
           Installation: ZIP entpacken und den Ordner ``obs-studio`` aus ``ProgramData`` nach ``C:\ProgramData\`` kopieren (OBS vorher schließen). Danach OBS starten, das Dock erscheint von selbst. Details in LIESMICH.md.
 
-          Hinweis: Dieser Stand ist unter Linux in OBS 30 getestet, auf Windows und mit einer echten Hallentafel noch nicht.
+          Neu in v2: Die Spielstand-Grafik blieb teilweise auf 0:0 und 00:00 stehen, obwohl das Dock den richtigen Stand hatte. Sie prüft jetzt bei jedem Bild selbst auf neue Werte.
+
+          Hinweis: Dieser Stand ist unter Linux in OBS 30 getestet. Auf Windows läuft die Erkennung, der Fix für die Grafik ist dort noch nicht bestätigt.
           "@
           # Gibt es das Release schon (z.B. weil der Branch erneut gepusht wurde), nur die ZIP austauschen.
           gh release view $env:TAG --repo $env:GITHUB_REPOSITORY *> $null

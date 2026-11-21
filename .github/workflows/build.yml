@@ -128,11 +128,11 @@ jobs:
           Get-Item handball-scoreboard-windows-x64.zip | Select-Object Name, Length
 
       - name: GitHub-Release erstellen
-        if: ${{ github.event.inputs.release_tag != '' }}
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release_tag != '' }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.inputs.release_tag }}
+          TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || github.event.inputs.release_tag }}
         run: |
           $ErrorActionPreference = 'Stop'
           $notes = @"

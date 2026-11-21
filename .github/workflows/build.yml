@@ -9,6 +9,10 @@ on:
         description: "OBS-Studio-Version, gegen die gebaut wird (Git-Tag, z.B. 31.0.3)"
         required: false
         default: "31.0.3"
+      release_tag:
+        description: "Wenn gesetzt (z.B. v0.1.0): zusätzlich ein GitHub-Release mit ZIP erstellen"
+        required: false
+        default: ""
 
 env:
   OBS_VERSION: ${{ github.event.inputs.obs_version || '31.0.3' }}
@@ -29,6 +33,8 @@ jobs:
     name: Plugin für Windows bauen
     runs-on: windows-2022
     needs: core-tests
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -113,3 +119,28 @@ jobs:
           name: handball-scoreboard-windows-x64
           path: pkg
           if-no-files-found: error
+
+      - name: ZIP erstellen
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Compress-Archive -Path pkg/* -DestinationPath handball-scoreboard-windows-x64.zip
+          Get-Item handball-scoreboard-windows-x64.zip | Select-Object Name, Length
+
+      - name: GitHub-Release erstellen
+        if: ${{ github.event.inputs.release_tag != '' }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $notes = @"
+          Handball Spielstand für OBS (Windows, 64 Bit), gebaut gegen OBS Studio $env:OBS_VERSION.
+
+          Installation: ZIP entpacken und den Ordner ``obs-studio`` aus ``ProgramData`` nach ``C:\ProgramData\`` kopieren (OBS vorher schließen). Danach OBS starten, das Dock erscheint von selbst. Details in LIESMICH.md.
+
+          Hinweis: Dieser Stand ist unter Linux in OBS 30 getestet, auf Windows und mit einer echten Hallentafel noch nicht.
+          "@
+          gh release create $env:TAG handball-scoreboard-windows-x64.zip --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Handball Spielstand $env:TAG" --notes "$notes" --prerelease
+          if ($LASTEXITCODE -ne 0) { throw "Release konnte nicht erstellt werden" }

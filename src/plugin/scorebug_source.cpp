@@ -124,7 +124,9 @@ void sbRender(void *data, gs_effect_t *)
 	if (!effect)
 		return;
 
-	if (s->dirty || !s->texture) {
+	// Auch hier die Version prüfen, nicht nur im Tick: Ein Tick kommt nicht in jedem Fall an
+	// (z.B. bei ausgeblendeten Quellen oder im Vorschau-Zweig), sonst bliebe die Grafik auf alten Werten stehen.
+	if (s->dirty || !s->texture || SharedState::instance().version() != s->renderedVersion) {
 		const Snapshot snap = SharedState::instance().read();
 		s->image = renderScorebug(snap, s->style);
 		s->renderedVersion = snap.version;

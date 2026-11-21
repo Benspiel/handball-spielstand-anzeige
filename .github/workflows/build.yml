@@ -133,7 +133,7 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || github.event.inputs.release_tag || 'v2' }}
+          TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || github.event.inputs.release_tag || 'v3' }}
         run: |
           $ErrorActionPreference = 'Stop'
           $notes = @"
@@ -141,7 +141,9 @@ jobs:
 
           Installation: ZIP entpacken und den Ordner ``obs-studio`` aus ``ProgramData`` nach ``C:\ProgramData\`` kopieren (OBS vorher schließen). Danach OBS starten, das Dock erscheint von selbst. Details in LIESMICH.md.
 
-          Neu in v2: Die Spielstand-Grafik blieb auf 0:0 und 00:00 stehen, obwohl das Dock den richtigen Stand hatte. Ursache war eine doppelt installierte DLL (z.B. in ProgramData und in Programme): OBS lud beide, das Dock kam aus der einen, die Grafik aus der anderen Kopie. Jetzt lädt sich eine zweite Kopie nicht mehr und schreibt eine Meldung ins OBS-Log. Außerdem zeigt das Dock unten die Build-Nummer an.
+          Neu in v3: Die Spielstand-Grafik blieb auf 0:0 und 00:00 stehen, obwohl das Dock den richtigen Stand hatte. Ursache war eine doppelt installierte DLL (z.B. in ProgramData und in Programme): OBS lud beide, das Dock kam aus der einen, die Grafik aus der anderen Kopie. Jetzt lädt sich eine zweite Kopie nicht mehr und schreibt eine Meldung ins OBS-Log. Außerdem zeigt das Dock unten die Build-Nummer an. Die Grafik prüft zudem bei jedem Bild selbst auf neue Werte.
+
+          Wichtig beim Update: Die alte handball-scoreboard.dll in ALLEN Ordnern ersetzen oder löschen, nur eine Kopie behalten.
 
           Hinweis: Dieser Stand ist unter Linux in OBS 30 getestet. Auf Windows läuft die Erkennung, der Fix für die Grafik ist dort noch nicht bestätigt.
           "@

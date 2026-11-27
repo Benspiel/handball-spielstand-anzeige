@@ -68,7 +68,10 @@ void Engine::step(double now)
 
 	auto good = [&](int i) -> std::optional<int> {
 		const hb::FieldReading &r = readings_[i];
-		if (r.status == hb::ReadStatus::Ok && r.confidence >= 0.05)
+		// Gleiche Bedingung wie die Vorschau im Dock: Was dort als Zahl angezeigt wird, geht auch in den
+		// Spielstand. Eine Mindest-Konfidenz hat hier knapp erkannte Ziffern verworfen, sodass die Grafik
+		// auf 0:0 / 00:00 stehen blieb. Gegen Lesefehler schützt der Tracker (mehrere gleiche Lesungen).
+		if (r.status == hb::ReadStatus::Ok)
 			return r.value;
 		return std::nullopt;
 	};
